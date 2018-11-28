@@ -5,10 +5,10 @@ library(dplyr)
 library(tidyr)
 library(RMark)
 library(ggplot2)
-library(ggrepel)
+library(stringr)
 
 ## set working directory to load the PBDB file
-setwd("M:/Franeck_and_Liow_2018")
+# setwd("M:/Franeck_and_Liow_2018")
 
 ## read in csv download from PBDB
 genus <- read.csv("PBDB_Ord_1.csv", sep = ",", header=T)
@@ -56,12 +56,18 @@ N.const <- list(formula=~1)
 
 
 ##############
-## difference between max and min_ma -> length of time bins 
-genus_diff <- cbind(genus[,c("occurrence_no","accepted_name","max_ma","min_ma","geoplate")],
+## difference between max and min_ma -> length of time bins
+genus_diff <- cbind(genus[,c("occurrence_no","accepted_name","max_ma","min_ma","phylum","class")],
                     "diff"=genus$max_ma-genus$min_ma)
 
-# genus_C3_S2 <- filter(genus_diff, max_ma < 509 & max_ma > 438.5 | min_ma < 509 & min_ma > 438.5)
-# 
+# genus_diff <- genus_diff %>% filter(str_detect(phylum, "Arthropoda"))
+# genus_diff <- genus_diff %>% filter(str_detect(phylum, "Brachiopoda"))
+genus_diff <- genus_diff %>% filter(str_detect(phylum, "Mollusca"))
+
+# genus_diff <- genus_diff %>% filter(str_detect(class, "Gastropoda"))
+
+# genus_diff <- genus_diff %>% filter(!str_detect(phylum, "Arthropoda|Brachiopoda|Mollusca"))
+
 # ## Figure S1 - duration of time bins
 # hist(genus_C3_S2$diff,
 #      breaks = 25,
@@ -82,7 +88,7 @@ reruns.gb=list()
 reruns.lambda.gb=list()
 
 
-for (i in 1:100){
+for (i in 1:2){
   
   tryCatch({
     
@@ -100,7 +106,7 @@ for (i in 1:100){
     cast_gen <- cast(melt_gen, accepted_name~SS, length)
     
     ## create input for RMARK
-    inp <- as.matrix(cast_gen[,2:12])
+    inp <- as.matrix(cbind.data.frame(cast_gen[,2:12]))
     inp <- ifelse(inp >=1, 1, 0)
     inp <- unite(as.data.frame(inp), "ch", c(1:11), sep = "")
     
@@ -115,7 +121,7 @@ for (i in 1:100){
 
 
 
-for (i in 1:100){
+for (i in 1:2){
   
   tryCatch({
     
@@ -132,6 +138,8 @@ for (i in 1:100){
     melt_gen <- na.omit(melt_gen)
     cast_gen <- cast(melt_gen, accepted_name~SS, length)
     
+    # inp <- as.matrix(cbind.data.frame("C3"=0,cast_gen[,2:11]))
+  
     inp <- as.matrix(cast_gen[,2:12])
     inp <- ifelse(inp >=1, 1, 0)
     inp <- unite(as.data.frame(inp), "ch", c(1:11), sep = "")
@@ -162,6 +170,18 @@ estimates.gb.lb <- do.call(cbind, lapply(reruns.lambda.gb, function(x) x$estimat
 lcl.gb.lb <- do.call(cbind, lapply(reruns.lambda.gb, function(x) x$lcl))
 ucl.gb.lb <- do.call(cbind, lapply(reruns.lambda.gb, function(x) x$ucl))
 
+
+
+estimates.gb[ucl.gb-lcl.gb==0|ucl.gb-lcl.gb==1]<-NA
+lcl.gb[is.na(estimates.gb)] <- NA
+ucl.gb[is.na(estimates.gb)] <- NA
+
+
+estimates.gb.lb[is.na(estimates.gb)]<-NA
+estimates.gb.lb[ucl.gb.lb-lcl.gb.lb>10]<-NA
+estimates.gb.lb[ucl.gb.lb-lcl.gb.lb==0|ucl.gb.lb-lcl.gb.lb==1]<-NA
+lcl.gb.lb[is.na(estimates.gb.lb)] <- NA
+ucl.gb.lb[is.na(estimates.gb.lb)] <- NA
 
 ###########################################################################################
 ## fully time-varying model for global data
@@ -224,25 +244,21 @@ mean.extrate <- -log(1-mean.extprob)/t
 mean.prate <- -log(1-mean.p)/tp
 
 
-#########################################################################################################
-## POPAN model
-
-genus <- read.csv("PBDB_Ord_1.csv", sep = ",", header=T)
-genus <- filter(genus, grepl("genus", accepted_rank))
-genus_diff <- cbind(genus[,c("occurrence_no","accepted_name","max_ma","min_ma","geoplate")],
-                    "diff"=genus$max_ma-genus$min_ma)
-
+# #########################################################################################################
+# ## POPAN model
+# 
+# 
 reruns.POP.gb=list()
 
-for (i in 1:100){
-  
+for (i in 1:2){
+
   tryCatch({
-    
+
     genus_val <- genus_diff%>% group_by(1:n()) %>% mutate(Ma=ifelse(diff<=12,runif(1,min_ma,max_ma),NA))
     base_SS <- c(509,497,485.4,477.7,470,467.3,458.4,453,445.2,443.8,440.8,438.5)
     name_SS<-c("C3","C4","Tr", "Fl","Dp","Dw","Sa","Ka","Hi","Si1","Si2")
-    genus_SS <- as.data.frame(genus_val %>% group_by(Ma) %>% mutate(SS=cut(Ma, 
-                                                                           breaks = base_SS, 
+    genus_SS <- as.data.frame(genus_val %>% group_by(Ma) %>% mutate(SS=cut(Ma,
+                                                                           breaks = base_SS,
                                                                            labels = rev(name_SS),
                                                                            right=FALSE)))
     genus_SS$SS <- factor(genus_SS$SS,
@@ -250,18 +266,18 @@ for (i in 1:100){
     melt_gen <- melt(genus_SS, id=c("accepted_name", "SS"), na.rm = TRUE)
     melt_gen <- na.omit(melt_gen)
     cast_gen <- cast(melt_gen, accepted_name~SS, length)
-    
+
     inp <- as.matrix(cast_gen[,2:12])
     inp <- ifelse(inp >=1, 1, 0)
     inp <- unite(as.data.frame(inp), "ch", c(1:11), sep = "")
-    
+
     proc.global  <- process.data(inp, model= "POPAN", time.intervals = c(11.8,9.65,7.7,5.2,5.8,7.15,6.6,4.6,2.2,2.65))#
     popan_Phi_time_p_time_pent_time <- mark(proc.global, model.parameters=list(Phi=Phi.time, p=p.time, pent=pent.time, N=N.const))
-    
+
   }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
-  
+
   reruns.POP.gb[[i]]=popan_Phi_time_p_time_pent_time$results$derived$`N Population Size`
-  
+
 }
 
 meanN_results_global <- rowMeans(do.call(cbind, lapply(reruns.POP.gb, function(x) x$estimate)))
@@ -273,8 +289,6 @@ ucl.gb.N <- do.call(cbind, lapply(reruns.POP.gb, function(x) x$ucl))
 
 ##########################################################
 ##########################################################
-############## plot ### Figure 1 #########################
-
 Stagebase <-c(485.4,477.7,470,467.3,458.4,453,445.2)
 Stagemidpoints <- c(481.55,473.85,468.65,462.85,455.7,449.1,444.5)
 
@@ -302,166 +316,263 @@ tscales.Ord <- function(top, bot, s.bot, ...){
   text(x=tpl[-7], y=bt[-8], labels = bases[1:7, 1])
 }
 
-
 ##########################################################
+##########################################################
+## Arthropoda
+## Figure S11
+
 par(mfrow=c(3,1),
-    oma = c(1,0,0,0),
-    mai = c(0.4, 0.7, 0.1, 0.7),
-    cex = 1.1)
+    oma = c(3,0,0,0),
+    mai = c(0, 0.7, 0.1, 0.7),
+    cex = 0.85)
 
-
-plot(Stagebase-0.2, Orig_rate[,27],
+plot(Stagebase-0.2, Orig_rate[,2],
      type = "b", 
      pch=16,
-     ylim = c(-0.02,0.2),
+     ylim = c(-0.1,0.3),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
-tscales.Ord(0.2, 0, -0.02)
+tscales.Ord(0.3, -0.01, -0.1)
 
-lines(Stagebase-0.2, Orig_rate[,27], type = "b", pch= 16, lwd=0.8)
-arrows(x0=Stagebase-0.2, y0=Orig_rate_CIl[,27], x1=Stagebase-0.2, y1=Orig_rate_CIu[,27], length=0.02, lwd = 0.8, angle = 90, code = 3)
-text(Stagebase[1]-0.6, Orig_rate[1,27]-0.015,labels="O",lwd=0.8)
+lines(Stagebase-0.2, Orig_rate[,2], type = "b", pch= 16, lwd=0.8)
+arrows(x0=Stagebase-0.2, y0=Orig_rate_CIl[,2], x1=Stagebase-0.2, y1=Orig_rate_CIu[,2], length=0.02, lwd = 0.8, angle = 90, code = 3)
+text(Stagebase[1]-1, Orig_rate[1,2]+0.025,labels="O",lwd=0.8)
 
-lines(Stagebase, Ext_rate[,27], type = "b", pch= 1, lwd=1.2,lty=5)
-arrows(x0=Stagebase, y0=Ext_rate_CIl[,27], x1=Stagebase, y1=Ext_rate_CIu[,27],length=0.02, lwd = 1.2, angle = 90, code = 3, lty=5)
-text(Stagebase[1]-0.4, Ext_rate[1,27]-0.015,labels="E",lwd=0.8)
+lines(Stagebase, Ext_rate[,2], type = "b", pch= 1, lwd=1.2,lty=5)
+arrows(x0=Stagebase, y0=Ext_rate_CIl[,2], x1=Stagebase, y1=Ext_rate_CIu[,2],length=0.02, lwd = 1.2, angle = 90, code = 3, lty=5)
+text(Stagebase[1]-0.9, Ext_rate[1,2]-0.035,labels="E",lwd=0.8)
 
 legend("topleft", legend="A", bty="n", cex = 1.25)
 
-axis(2, col = 'grey75', line = -0.2, at = seq(0, 0.2, 0.05))
+axis(2, col = 'grey75', line = -0.2, at = seq(0, 0.3, 0.1))
 
-mtext("Orig./Ext. events per myr", side = 2, line = 2, cex = 0.75)
+mtext("Orig./Ext. events\n per myr", side = 2, line = 2, cex = 0.75)
 
-##########################################################
-plot(Stagebase, div[,27]-1, type = "b", 
+##
+##
+##
+plot(Stagebase, div[,2]-1, type = "b",
      pch=24,
      lwd=0.8,
-     ylim = c(-1.02,2),
+     ylim = c(-1.02,1.5),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
-tscales.Ord(2, -0.7, -1.02)
+tscales.Ord(1.5, -0.65, -1)
 abline(h = 0, col="darkgrey")
 
-lines(Stagebase, div[,27]-1, type = "b", pch=24, lwd=0.8)
-arrows(x0=Stagebase, y0=divl[,27]-1, x1=Stagebase, y1=divu[,27]-1, length=0.02, lwd = 0.8, angle = 90, code = 3)
+lines(Stagebase, div[,2]-1, type = "b", pch=24, lwd=0.8)
+arrows(x0=Stagebase, y0=divl[,2]-1, x1=Stagebase, y1=divu[,2]-1, length=0.02, lwd = 0.8, angle = 90, code = 3)
 
-axis(2, col = 'grey75', line = -0.2, at = seq(-1, 2, 0.5))
+axis(2, col = 'grey75', line = -0.2, at = seq(-1, 1.5, 0.5))
 
 legend("topleft", legend="B", bty="n", cex = 1.25)
 
 mtext("Net diversification rate", side = 2, line = 2, cex = 0.75)
 
 par(new=TRUE)
-
-plot(Stagemidpoints, estimates.gb.N[3:9,27], type = "b",
+###
+###
+###
+plot(Stagemidpoints, estimates.gb.N[3:9,2], type = "b",
      pch=15,
      lty=6,
      lwd=1.2,
-     ylim = c(500,2000),
+     ylim = c(0,600),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
 
-arrows(x0=Stagemidpoints, y0=lcl.gb.N[3:9,27], x1=Stagemidpoints, y1=ucl.gb.N[3:9,27],
+arrows(x0=Stagemidpoints, y0=lcl.gb.N[3:9,2], x1=Stagemidpoints, y1=ucl.gb.N[3:9,2],
        length=0.02, lwd = 1.2, angle = 90, code = 3 ,lty=6)
 
-axis(4, col = 'grey75', line = -1, at = seq(500, 2000, 500))
+axis(4, col = 'grey75', line = 0, at = seq(0, 600, 150))
 mtext("Genus richness", side = 4, line = 2, cex = 0.75)
-
-##########################################################
-plot(Stagemidpoints, rate_p[,27], type = "b", 
-     ylim = c(-0.1,0.9),
+##
+##
+##
+plot(Stagemidpoints, rate_p[,2], type = "b",
+     ylim = c(-0.2,1),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
-tscales.Ord(0.9, 0, -0.1)
+tscales.Ord(1, -0.01, -0.2)
 
-lines(Stagemidpoints, rate_p[,27], type = "b")
-arrows(x0=Stagemidpoints, y0=ratel_p[,27], x1=Stagemidpoints, y1=rateu_p[,27], length=0.02, lwd = 1, angle = 90, code = 3)
+lines(Stagemidpoints, rate_p[,2], type = "b")
+arrows(x0=Stagemidpoints, y0=ratel_p[,2], x1=Stagemidpoints, y1=rateu_p[,2], length=0.02, lwd = 1, angle = 90, code = 3)
 
 legend("topleft", legend="C", bty="n", cex = 1.25)
 
 axis(1, col = 'grey75', line = -0.05, at = seq(445,485,10))
-axis(2, col = 'grey75', line = -0.2, at = seq(0, 0.9, 0.15))
+axis(2, col = 'grey75', line = -0.2, at = seq(0, 1, 0.2))
 
-mtext("Age (Ma)", side = 1, line = 1.5, cex = 0.75)
-mtext("Sampling events per myr", side = 2, line = 2, cex = 0.75)
+mtext("Age (Ma)", side = 1, line = 2, cex = 0.75)
+mtext("Sampling events\n per myr", side = 2, line = 2, cex = 0.75)
 
-##########################################################
-##########################################################
-############## plot ### Figure S5 ########################
-########### 100 replicate runs of the model ##############
+
+
+
+##########################################################################################
+##########################################################################################
+## Brachiopoda
+## Figure S12
 
 par(mfrow=c(3,1),
-    oma = c(1,0,0,0),
-    mai = c(0.4, 0.7, 0.1, 0.7),
-    cex = 1.1)
+    oma = c(3,0,0,0),
+    mai = c(0, 0.7, 0.1, 0.7),
+    cex = 0.85)
 
-plot(Stagebase-0.2, mean.origrate,
+plot(Stagebase-0.2, Orig_rate[,2],
      type = "b", 
      pch=16,
-     ylim = c(-0.02,0.2),
+     ylim = c(-0.1,0.3),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
-tscales.Ord(0.2, 0, -0.02)
+tscales.Ord(0.3, -0.01, -0.1)
 
-for (i in 1:100){
-  lines(Stagebase-0.2, Orig_rate_CIl[,i], col = "grey70")}
-for (i in 1:100){
-  lines(Stagebase-0.2, Orig_rate_CIu[,i], col = "grey70")
-}  
+lines(Stagebase-0.2, Orig_rate[,2], type = "b", pch= 16, lwd=0.8)
+arrows(x0=Stagebase-0.2, y0=Orig_rate_CIl[,2], x1=Stagebase-0.2, y1=Orig_rate_CIu[,2], length=0.02, lwd = 0.8, angle = 90, code = 3)
+text(Stagebase[1]-0.8, Orig_rate[1,2]+0.05,labels="O",lwd=0.8)
 
-
-for (i in 1:100){
-  lines(Stagebase, Ext_rate_CIl[,i], col = "grey55")}
-for (i in 1:100){
-  lines(Stagebase, Ext_rate_CIu[,i], col = "grey55")}
-
-lines(Stagebase-0.2, mean.origrate, type = "b", pch= 16, lwd=1.5)
-lines(Stagebase, mean.extrate, type = "b", pch= 1, lwd=1.5,lty=5)
-
-text(Stagebase[1]-0.6, Orig_rate[1,27]-0.015,labels="O",lwd=0.8)
-text(Stagebase[1]-0.4, Ext_rate[1,27]-0.015,labels="E",lwd=0.8)
-
+lines(Stagebase, Ext_rate[,2], type = "b", pch= 1, lwd=1.2,lty=5)
+arrows(x0=Stagebase, y0=Ext_rate_CIl[,2], x1=Stagebase, y1=Ext_rate_CIu[,2],length=0.02, lwd = 1.2, angle = 90, code = 3, lty=5)
+text(Stagebase[1]-0.5, Ext_rate[1,2]-0.045,labels="E",lwd=0.8)
 
 legend("topleft", legend="A", bty="n", cex = 1.25)
 
-axis(2, col = 'grey75', line = -0.2, at = seq(0, 0.2, 0.05))
+axis(2, col = 'grey75', line = -0.2, at = seq(0, 0.3, 0.1))
 
-mtext("Orig./Ext. events per myr", side = 2, line = 2, cex = 0.75)
-
-##########################################################
-plot(Stagebase, mean.div-1, type = "b", 
+mtext("Orig./Ext. events\n per myr", side = 2, line = 2, cex = 0.75)
+###
+###
+###
+plot(Stagebase, div[,2]-1, type = "b",
      pch=24,
      lwd=0.8,
-     ylim = c(-1.02,2),
+     ylim = c(-1.7,4),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
-tscales.Ord(2, -0.7, -1.02)
-abline(h = 0, col="white", lwd = 2)
+tscales.Ord(4, -0.65, -1.7)
+abline(h = 0, col="darkgrey")
+
+lines(Stagebase, div[,2]-1, type = "b", pch=24, lwd=0.8)
+arrows(x0=Stagebase, y0=divl[,2]-1, x1=Stagebase, y1=divu[,2]-1, length=0.02, lwd = 0.8, angle = 90, code = 3)
+
+axis(2, col = 'grey75', line = -0.2, at = seq(-1, 4, 0.5))
+
+legend("topleft", legend="B", bty="n", cex = 1.25)
+
+mtext("Net diversification rate", side = 2, line = 2, cex = 0.75)
+
+par(new=TRUE)
+###
+###
+###
+plot(Stagemidpoints, estimates.gb.N[3:9,2], type = "b",
+     pch=15,
+     lty=6,
+     lwd=1.2,
+     ylim = c(0,400),
+     xlim = rev(c(444.18,485.4)),
+     axes = F,
+     xlab = "",
+     ylab = "")
 
 
-for (i in 1:100){
-  lines(Stagebase, divl[,i]-1, col = "grey70")}
-for (i in 1:100){
-  lines(Stagebase, divu[,i]-1, col = "grey70")
-}  
+arrows(x0=Stagemidpoints, y0=lcl.gb.N[3:9,2], x1=Stagemidpoints, y1=ucl.gb.N[3:9,2],
+       length=0.02, lwd = 1.2, angle = 90, code = 3 ,lty=6)
 
-lines(Stagebase, mean.div-1, type = "b", pch=24, lwd=0.8)
+axis(4, col = 'grey75', line = 0, at = seq(0, 400, 100))
+mtext("Genus richness", side = 4, line = 2, cex = 0.75)
+###
+###
+###
+plot(Stagemidpoints, rate_p[,2], type = "b",
+     ylim = c(-0.2,1),
+     xlim = rev(c(444.18,485.4)),
+     axes = F,
+     xlab = "",
+     ylab = "")
+
+tscales.Ord(1, -0.01, -0.2)
+
+lines(Stagemidpoints, rate_p[,2], type = "b")
+arrows(x0=Stagemidpoints, y0=ratel_p[,2], x1=Stagemidpoints, y1=rateu_p[,2], length=0.02, lwd = 1, angle = 90, code = 3)
+
+legend("topleft", legend="C", bty="n", cex = 1.25)
+
+axis(1, col = 'grey75', line = -0.05, at = seq(445,485,10))
+axis(2, col = 'grey75', line = -0.2, at = seq(0, 1, 0.2))
+
+mtext("Age (Ma)", side = 1, line = 2, cex = 0.75)
+mtext("Sampling events\n per myr", side = 2, line = 2, cex = 0.75)
+
+
+
+
+##########################################################################################
+##########################################################################################
+## Molluscs
+## Figure S13
+
+par(mfrow=c(3,1),
+    oma = c(3,0,0,0),
+    mai = c(0, 0.7, 0.1, 0.7),
+    cex = 0.85)
+
+plot(Stagebase-0.2, Orig_rate[,2],
+     type = "b", 
+     pch=16,
+     ylim = c(-0.15,0.5),
+     xlim = rev(c(444.18,485.4)),
+     axes = F,
+     xlab = "",
+     ylab = "")
+tscales.Ord(0.5, -0.01, -0.15)
+
+lines(Stagebase-0.2, Orig_rate[,2], type = "b", pch= 16, lwd=0.8)
+arrows(x0=Stagebase-0.2, y0=Orig_rate_CIl[,2], x1=Stagebase-0.2, y1=Orig_rate_CIu[,2], length=0.02, lwd = 0.8, angle = 90, code = 3)
+text(Stagebase[1]-0.9, Orig_rate[1,2]+0.025,labels="O",lwd=0.8)
+
+lines(Stagebase, Ext_rate[,2], type = "b", pch= 1, lwd=1.2,lty=5)
+arrows(x0=Stagebase, y0=Ext_rate_CIl[,2], x1=Stagebase, y1=Ext_rate_CIu[,2],length=0.02, lwd = 1.2, angle = 90, code = 3, lty=5)
+text(Stagebase[1]-0.7, Ext_rate[1,2]+0.045,labels="E",lwd=0.8)
+
+legend("topleft", legend="A", bty="n", cex = 1.25)
+
+axis(2, col = 'grey75', line = -0.2, at = seq(0, 0.5, 0.1))
+
+mtext("Orig./Ext. events\n per myr", side = 2, line = 2, cex = 0.75)
+###
+###
+###
+plot(Stagebase, div[,2]-1, type = "b",
+     pch=24,
+     lwd=0.8,
+     ylim = c(-1.1,2),
+     xlim = rev(c(444.18,485.4)),
+     axes = F,
+     xlab = "",
+     ylab = "")
+
+tscales.Ord(2, -0.65, -1.1)
+abline(h = 0, col="darkgrey")
+
+lines(Stagebase, div[,2]-1, type = "b", pch=24, lwd=0.8)
+arrows(x0=Stagebase, y0=divl[,2]-1, x1=Stagebase, y1=divu[,2]-1, length=0.02, lwd = 0.8, angle = 90, code = 3)
 
 axis(2, col = 'grey75', line = -0.2, at = seq(-1, 2, 0.5))
 
@@ -469,131 +580,148 @@ legend("topleft", legend="B", bty="n", cex = 1.25)
 
 mtext("Net diversification rate", side = 2, line = 2, cex = 0.75)
 
-##########################################################
 par(new=TRUE)
-
-plot(Stagemidpoints, meanN_results_global[3:9], type = "b",
+###
+###
+###
+plot(Stagemidpoints, estimates.gb.N[3:9,2], type = "b",
      pch=15,
      lty=6,
      lwd=1.2,
-     ylim = c(500,2000),
+     ylim = c(0,400),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
 
-for (i in 1:100){
-  lines(Stagemidpoints, lcl.gb.N[3:9,i], col = "grey55")}
-for (i in 1:100){
-  lines(Stagemidpoints, ucl.gb.N[3:9,i], col = "grey55")}
-lines(Stagemidpoints,meanN_results_global[3:9],type="b")
+arrows(x0=Stagemidpoints, y0=lcl.gb.N[3:9,2], x1=Stagemidpoints, y1=ucl.gb.N[3:9,2],
+       length=0.02, lwd = 1.2, angle = 90, code = 3 ,lty=6)
 
-
-axis(4, col = 'grey75', line = 0, at = seq(500, 2000, 500))
-
+axis(4, col = 'grey75', line = 0, at = seq(0, 400, 100))
 mtext("Genus richness", side = 4, line = 2, cex = 0.75)
-
-##########################################################
-plot(Stagemidpoints, mean.prate, type = "b", 
-     ylim = c(-0.1,0.9),
+###
+###
+###
+plot(Stagemidpoints, rate_p[,2], type = "b",
+     ylim = c(-0.4,1.6),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
-tscales.Ord(0.9, 0, -0.1)
+tscales.Ord(1.6, -0.01, -0.4)
 
-for (i in 1:100){
-  lines(Stagemidpoints, ratel_p[,i], col = "grey55")}
-for (i in 1:100){
-  lines(Stagemidpoints, rateu_p[,i], col = "grey55")}
-  lines(Stagemidpoints,mean.prate, type="b")
+lines(Stagemidpoints, rate_p[,2], type = "b")
+arrows(x0=Stagemidpoints, y0=ratel_p[,2], x1=Stagemidpoints, y1=rateu_p[,2], length=0.02, lwd = 1, angle = 90, code = 3)
 
 legend("topleft", legend="C", bty="n", cex = 1.25)
 
-axis(1, col = 'grey75', line = -0.05)
-axis(2, col = 'grey75', line = -0.2, at = seq(0, 0.9, 0.15))
+axis(1, col = 'grey75', line = -0.05, at = seq(445,485,10))
+axis(2, col = 'grey75', line = -0.2, at = seq(0, 1.6, 0.2))
 
-mtext("Age (Ma)", side = 1, line = 1.5, cex = 0.75)
-mtext("Sampling events per myr", side = 2, line = 2, cex = 0.75)
-
-
-#########################################################################################################
-#### phyla represented by genus occurrences #############################################################
-## Table S6
-genusg <- filter(genus, grepl("genus", accepted_rank))
-genus_Ord <- filter(genusg, max_ma < 481.55 & max_ma > 443.8 | min_ma < 481.55 & min_ma > 443.8)
-genus_phyla <- unique(genus_Ord[,c("accepted_name","phylum")])
-
-n_phyla <- aggregate(list(genus_phyla$accepted_name),
-                     list(genus_phyla$phylum),
-                     length)
-
-n_phyla <- arrange(n_phyla,desc(n_phyla[,2]))#, n = 10)
-n_phyla[,2] <- n_phyla[,2]*100/colSums(n_phyla[2], na.rm = T)
-n_phyla$group <- ifelse(n_phyla[,2]>1, 1, 2)
-n_phyla1 <- n_phyla[n_phyla$group==1,]
-n_phyla1 <- n_phyla1 %>% filter(!Group.1 %in% c("","Problematica"))
+mtext("Age (Ma)", side = 1, line = 2, cex = 0.75)
+mtext("Sampling events\n per myr", side = 2, line = 2, cex = 0.75)
 
 
-colnames(n_phyla1)[1] <- "Phylum"
-colnames(n_phyla1)[2] <- "percent"
-
-n_phyla1$Phylum <- factor(n_phyla1$Phylum,
-                        levels = c(levels(n_phyla1$Phylum),"Others"))
-
-n_phyla1[nrow(n_phyla1)+1,1] <- c("Others")
-n_phyla1[nrow(n_phyla1),2] <- c(100-colSums(n_phyla1[2], na.rm = T))
-Phyla_global <- n_phyla1[,1:2]
-
-## pie plot of all phyla that are represented by the Ordovician data in the dataset
-ggplot(Phyla_global, aes(x="", y=percent, fill=Phylum)) +
-  geom_bar(stat="identity", colour = "white") +
-  # geom_text(aes(x= factor(1), y=pos, label = Phylum), size=10) +  # note y = pos
-  theme_minimal() +
-  scale_fill_grey(start = 0, end = 0.9, na.value = "white")+
-  coord_polar("y", start=0) +
-  ggtitle("Phyla represented by Genera globally")
 
 
-#########################################################################################################
-## model comparison #####################################################################################
-genus_val <- genus_diff %>% group_by(1:n()) %>% mutate(Ma=ifelse(diff<=12, runif(1,min_ma,max_ma),NA))
-base_SS <- c(509,497,485.4,477.7,470,467.3,458.4,453,445.2,443.8,440.8,438.5)
-name_SS<-c("C3","C4","Tr", "Fl","Dp","Dw","Sa","Ka","Hi","Si1","Si2")
-genus_SS <- as.data.frame(genus_val %>% group_by(Ma) %>% mutate(SS=cut(Ma, 
-                                                                       breaks = base_SS, 
-                                                                       labels = rev(name_SS),
-                                                                       right=FALSE)))
-genus_SS$SS <- factor(genus_SS$SS,
-                      levels = c("C3","C4","Tr", "Fl","Dp","Dw","Sa","Ka","Hi","Si1","Si2"))
-melt_gen <- melt(genus_SS, id=c("accepted_name", "SS"), na.rm = TRUE)
-melt_gen <- na.omit(melt_gen)
-cast_gen <- cast(melt_gen, accepted_name~SS, length)
+##########################################################################################
+##########################################################################################
+## All others
+## Figure S14
 
-## create input for RMARK
-inp <- as.matrix(cast_gen[,2:12])
-inp <- ifelse(inp >=1, 1, 0)
-inp <- unite(as.data.frame(inp), "ch", c(1:11), sep = "")
+par(mfrow=c(3,1),
+    oma = c(3,0,0,0),
+    mai = c(0, 0.7, 0.1, 0.7),
+    cex = 0.85)
 
-##########################################################
-##########################################################
-## model comparison based on Pradsen model
-## Table S1
+plot(Stagebase-0.2, Orig_rate[,2],
+     type = "b", 
+     pch=16,
+     ylim = c(-0.1,0.3),
+     xlim = rev(c(444.18,485.4)),
+     axes = F,
+     xlab = "",
+     ylab = "")
+tscales.Ord(0.3, -0.01, -0.1)
 
-proc.Berg_pradsen <- process.data(inp, model= "Pradsen")
+lines(Stagebase-0.2, Orig_rate[,2], type = "b", pch= 16, lwd=0.8)
+arrows(x0=Stagebase-0.2, y0=Orig_rate_CIl[,2], x1=Stagebase-0.2, y1=Orig_rate_CIu[,2], length=0.02, lwd = 0.8, angle = 90, code = 3)
+text(Stagebase[1]-0.7, Orig_rate[1,2]+0.025,labels="O",lwd=0.8)
 
-time.global <- mark(proc.Berg_pradsen, model.parameters = list(Phi=Phi.time, p=p.time, Gamma=L.time))
-phi.t.p.1.g.t <- mark(proc.Berg_pradsen, model.parameters = list(Phi=Phi.time, p=p.const, Gamma=L.time))
-phi.1.p.t.g.t <- mark(proc.Berg_pradsen, model.parameters = list(Phi=Phi.const, p=p.time, Gamma=L.time))
-phi.t.p.t.g.1 <- mark(proc.Berg_pradsen, model.parameters = list(Phi=Phi.time, p=p.time, Gamma=L.const))
-phi.1.p.1.g.t <- mark(proc.Berg_pradsen, model.parameters = list(Phi=Phi.const, p=p.const, Gamma=L.time))
-phi.1.p.t.g.1 <- mark(proc.Berg_pradsen, model.parameters = list(Phi=Phi.const, p=p.time, Gamma=L.const))
-phi.t.p.1.g.1 <- mark(proc.Berg_pradsen, model.parameters = list(Phi=Phi.time, p=p.const, Gamma=L.const))
-## compare all models in following table
-comparison <- collect.models(type = "Pradsen")
-comparison
-##########################################################
-##########################################################
+lines(Stagebase, Ext_rate[,2], type = "b", pch= 1, lwd=1.2,lty=5)
+arrows(x0=Stagebase, y0=Ext_rate_CIl[,2], x1=Stagebase, y1=Ext_rate_CIu[,2],length=0.02, lwd = 1.2, angle = 90, code = 3, lty=5)
+text(Stagebase[1]-0.4, Ext_rate[1,2]-0.035,labels="E",lwd=0.8)
 
+legend("topleft", legend="A", bty="n", cex = 1.25)
+
+axis(2, col = 'grey75', line = -0.2, at = seq(0, 0.3, 0.1))
+
+mtext("Orig./Ext. events\n per myr", side = 2, line = 2, cex = 0.75)
+###
+###
+###
+plot(Stagebase[2:7], div[2:7,2]-1, type = "b", 
+     pch=24,
+     lwd=0.8,
+     ylim = c(-1.4,2.5),
+     xlim = rev(c(444.18,485.4)),
+     axes = F,
+     xlab = "",
+     ylab = "")
+
+tscales.Ord(2.5, -0.65, -1.4)
+abline(h = 0, col="darkgrey")
+
+lines(Stagebase[2:7], div[2:7,2]-1, type = "b", pch=24, lwd=0.8)
+arrows(x0=Stagebase[2:7], y0=divl[2:7,2]-1, x1=Stagebase[2:7], y1=divu[2:7,2]-1, length=0.02, lwd = 0.8, angle = 90, code = 3)
+
+axis(2, col = 'grey75', line = -0.2, at = seq(-1, 2, 0.5))
+
+legend("topleft", legend="B", bty="n", cex = 1.25)
+
+mtext("Net diversification rate", side = 2, line = 2, cex = 0.75)
+
+par(new=TRUE)
+###
+###
+###
+plot(Stagemidpoints, estimates.gb.N[3:9,2], type = "b",
+     pch=15,
+     lty=6,
+     lwd=1.2,
+     ylim = c(0,800),
+     xlim = rev(c(444.18,485.4)),
+     axes = F,
+     xlab = "",
+     ylab = "")
+
+
+arrows(x0=Stagemidpoints, y0=lcl.gb.N[3:9,2], x1=Stagemidpoints, y1=ucl.gb.N[3:9,2],
+       length=0.02, lwd = 1.2, angle = 90, code = 3 ,lty=6)
+
+axis(4, col = 'grey75', line = 0, at = seq(0, 800, 200))
+mtext("Genus richness", side = 4, line = 2, cex = 0.75)
+###
+###
+###
+plot(Stagemidpoints, rate_p[,2], type = "b",
+     ylim = c(-0.2,1),
+     xlim = rev(c(444.18,485.4)),
+     axes = F,
+     xlab = "",
+     ylab = "")
+
+tscales.Ord(1, -0.01, -0.2)
+
+lines(Stagemidpoints, rate_p[,2], type = "b")
+arrows(x0=Stagemidpoints, y0=ratel_p[,2], x1=Stagemidpoints, y1=rateu_p[,2], length=0.02, lwd = 1, angle = 90, code = 3)
+
+legend("topleft", legend="C", bty="n", cex = 1.25)
+
+axis(1, col = 'grey75', line = -0.05, at = seq(445,485,10))
+axis(2, col = 'grey75', line = -0.2, at = seq(0, 1, 0.2))
+
+mtext("Age (Ma)", side = 1, line = 2, cex = 0.75)
+mtext("Sampling events\n per myr", side = 2, line = 2, cex = 0.75)

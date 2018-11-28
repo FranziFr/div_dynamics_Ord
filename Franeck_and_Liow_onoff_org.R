@@ -553,6 +553,16 @@ estimates.oo.lambda <- do.call(cbind, lapply(reruns.lambda.oo, function(x) x$est
 lcl.oo.lambda <- do.call(cbind, lapply(reruns.lambda.oo, function(x) x$lcl))
 ucl.oo.lambda <- do.call(cbind, lapply(reruns.lambda.oo, function(x) x$ucl))
 
+estimates.oo[estimates.oo==0|estimates.oo==1] <- NA
+estimates.oo[ucl.oo-lcl.oo==0|ucl.oo-lcl.oo==1]<-NA
+lcl.oo[is.na(estimates.oo)] <- NA
+ucl.oo[is.na(estimates.oo)] <- NA
+
+estimates.oo.lambda[ucl.oo.lambda-lcl.oo.lambda>10]<-NA
+estimates.oo.lambda[ucl.oo.lambda-lcl.oo.lambda==0|ucl.oo.lambda-lcl.oo.lambda==1]<-NA
+lcl.oo.lambda[is.na(estimates.oo.lambda)] <- NA
+ucl.oo.lambda[is.na(estimates.oo.lambda)] <- NA
+
 
 #################################################################################
 ##############################################################################
@@ -978,7 +988,7 @@ mean.prate.off <- -log(1-mean.p.off)/tp
 # off_extinctCIuA <- 1-phiu_offA
 # # 
 ##############################################################################
-####### plot # FIGURE 4 ######################################################
+####### plot # FIGURE 4 ## (origination rates) ##############################
 Stagebase <-c(485.4,477.7,470,467.3,458.4,453,445.2)
 Stagemidpoints <- c(481.55,473.85,468.65,462.85,455.7,449.1,444.5)
 
@@ -1009,6 +1019,7 @@ tscales.Ord <- function(top, bot, s.bot, ...){
 }
 
 ##############################################################################
+####### plot # FIGURE 4 ## (origination rates) ##############################
 
 par(mfrow=c(2,2), mar = c(3,1,0.1,1), oma = c(0,2,0,0))
 plot(Stagebase-0.5, on_Orig_rate[,27], type = "b",
@@ -1111,9 +1122,8 @@ mtext("Sampling events per myr", side = 2, line = 2, cex = 0.75)
 
 
 ##############################################################################
-####### Figure S5 ############################################################
+####### Figure S9 ############################################################
 ####### replicate plot from 100 runs  ########################################
-
 par(mfrow=c(2,2), mar = c(3,1,0.1,1), oma = c(0,2,0,0))
 plot(Stagebase-0.5, on_Orig_rate[,27], type = "b",
      pch=19,
@@ -1413,6 +1423,7 @@ ggplot(df_phyla_onoff, aes(x="", y=percent, fill=Phylum)) +
 #########################################################################################
 #########################################################################################
 ## model comparison
+## Table S3
 
 rm(list=ls())
 

@@ -303,7 +303,7 @@ for (i in 1:100){
     
     proc.pradsen <- process.data(inp, model= "Pradsen", groups = "environment")
     Time.env <- mark(proc.pradsen, model.parameters = list(Phi=Phi.Time.env, p=p.Time.env, Gamma=Gamma.Time.env))
-    
+
   }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
   
   reruns.oo[[i]]=Time.env$results$real
@@ -521,6 +521,7 @@ for(i in 1:100){
     
     proc.pradlambda <- process.data(inp, model= "Pradlambda", groups = "environment")
     TimeD.env <- mark(proc.pradlambda, model.parameters = list(Phi=Phi.Time.env, p=p.Time.env, Lambda=L.Time.env))
+
     
   }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
   
@@ -542,6 +543,16 @@ mean_results.lambda <- rowMeans(do.call(cbind, lapply(reruns.lambda.oo, function
 estimates.oo.lambda <- do.call(cbind, lapply(reruns.lambda.oo, function(x) x$estimate))
 lcl.oo.lambda <- do.call(cbind, lapply(reruns.lambda.oo, function(x) x$lcl))
 ucl.oo.lambda <- do.call(cbind, lapply(reruns.lambda.oo, function(x) x$ucl))
+
+estimates.oo[estimates.oo==0|estimates.oo==1] <- NA
+estimates.oo[ucl.oo-lcl.oo==0|ucl.oo-lcl.oo==1]<-NA
+lcl.oo[is.na(estimates.oo)] <- NA
+ucl.oo[is.na(estimates.oo)] <- NA
+
+estimates.oo.lambda[ucl.oo.lambda-lcl.oo.lambda>10]<-NA
+estimates.oo.lambda[ucl.oo.lambda-lcl.oo.lambda==0|ucl.oo.lambda-lcl.oo.lambda==1]<-NA
+lcl.oo.lambda[is.na(estimates.oo.lambda)] <- NA
+ucl.oo.lambda[is.na(estimates.oo.lambda)] <- NA
 
 
 #################################################################################
@@ -941,7 +952,7 @@ mean.prate.off <- -log(1-mean.p.off)/tp
 # 
 ##############################################################################
 ##############################################################################
-####### plot ## FIGURE 4 extinction rates ####################################
+####### plot ## FIGURE 4 ## (extinction rates) ###############################
 Stagebase <-c(485.4,477.7,470,467.3,458.4,453,445.2)
 Stagemidpoints <- c(481.55,473.85,468.65,462.85,455.7,449.1,444.5)
 
@@ -972,7 +983,7 @@ tscales.Ord <- function(top, bot, s.bot, ...){
 }
 
 ##############################################################################
-####### plot # FIGURE 4 # extinctin rates ####################################
+####### plot ## FIGURE 4 ## (extinction rates) ###############################
 Stagebase <-c(485.4,477.7,470,467.3,458.4,453,445.2)
 Stagemidpoints <- c(481.55,473.85,468.65,462.85,455.7,449.1,444.5)
 
@@ -1003,7 +1014,7 @@ tscales.Ord <- function(top, bot, s.bot, ...){
 }
 
 ##############################################################################
-par(mfrow=c(2,2), mar = c(3,1,0.1,1), oma = c(0,2,0,0))
+par(mfrow=c(2,2), mar = c(3,3,0.1,1), oma = c(0,1,0,0))
 
 plot(Stagebase-0.5, on_Orig_rate[,27], type = "b",
      pch=19,
@@ -1054,13 +1065,13 @@ mtext("Extinction events per myr", side = 2, line = 2, cex = 0.75)
 ##############################################################################
 plot(Stagebase-0.5, div_on[,27]-1, type = "b",
      pch=17,
-     ylim = c(-1.5,10),
+     ylim = c(-1.5,3),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
-tscales.Ord(10, -1, -1.5)
+tscales.Ord(3, -1, -1.5)
 abline(h = 0, col="darkgrey")
 
 
@@ -1072,7 +1083,7 @@ arrows(x0=Stagebase, y0=divl_off[,27]-1, x1=Stagebase, y1=divu_off[,27]-1, lengt
 legend("topleft", legend="C", bty="n", cex = 1.25)
 
 axis(1, col = 'grey75', line = -0.1, at = seq(445,485,10))
-axis(2, col = 'grey75', line = -0.2, at = seq(-1,10, 2))
+axis(2, col = 'grey75', line = -0.2, at = seq(-1,3, 1))
 
 mtext("Age (Ma)", side = 1, line = 2, cex = 0.75)
 mtext("Net diversification rate per myr", side = 2, line = 2, cex = 0.75)
@@ -1102,7 +1113,7 @@ mtext("Sampling events per myr", side = 2, line = 2, cex = 0.75)
 
 
 ##############################################################################
-######### FIGRUE S6 ##########################################################
+######### FIGRUE S10 #########################################################
 ######### replicate plot from 100 runs #######################################
 par(mfrow=c(2,2), mar = c(3,1,0.1,1), oma = c(0,2,0,0))
 plot(Stagebase-0.5, on_Orig_rate[,27], type = "b",
@@ -1402,5 +1413,62 @@ ggplot(df_onoffmig, aes(x="", y=percent, fill=Phylum)) +
   scale_fill_grey(start = 0, end = 0.9) +
   coord_polar("y", start=0) +
   ggtitle("Phyla represented by Genera offshore/onshore")
+
+################################################################################################################
+##############################################################################
+##  model comparison for Pradsen
+##  Table S4 
+proc.pradsen  <- process.data(inp, model= "Pradsen", groups = "environment")
+
+time <- mark(proc.pradsen,
+             model.parameters=list(Phi=Phi.time, p=p.time, Gamma=Gamma.time))
+
+time.const <- mark(proc.pradsen,
+                   model.parameters = list(Phi=Phi.const, p=p.const, Gamma=Gamma.const))
+
+phi.env.p.const <- mark(proc.pradsen,
+                        model.parameters = list(Phi=Phi.env, p=p.const, Gamma=Gamma.const))
+
+phi.env.p.plate <- mark(proc.pradsen,
+                        model.parameters = list(Phi=Phi.env, p=p.env, Gamma=Gamma.const))
+
+phi.env.p.time <- mark(proc.pradsen,
+                       model.parameters = list(Phi=Phi.env, p=p.time, Gamma=Gamma.const))
+
+phi.env.p.time.gamma.time <- mark(proc.pradsen,
+                                  model.parameters = list(Phi=Phi.env, p=p.time, Gamma=Gamma.time))
+
+phi.env.p.env.gamma.time <- mark(proc.pradsen,
+                                 model.parameters = list(Phi=Phi.env, p=p.env, Gamma=Gamma.time))
+
+phi.te.p.te.gamma.t <- mark(proc.pradsen,
+                            model.parameters = list(Phi=Phi.time.env, p=p.time.env, Gamma=Gamma.time))
+
+phi.te.p.t.gamma.te <- mark(proc.pradsen,
+                            model.parameters = list(Phi=Phi.time.env, p=p.time, Gamma=Gamma.time.env))
+
+phi.t.p.te.g.te <- mark(proc.pradsen,
+                        model.parameters = list(Phi=Phi.time, p=p.time.env, Gamma=Gamma.time.env))
+
+time.env <- mark(proc.pradsen,
+                 model.parameters = list(Phi=Phi.time.env, p=p.time.env, Gamma=Gamma.time.env))
+
+Time.env <- mark(proc.pradsen,
+                 model.parameters = list(Phi=Phi.Time.env, p=p.Time.env, Gamma=Gamma.Time.env))
+
+phi.Te.p.te.gamma.Te <- mark(proc.pradsen,
+                             model.parameters = list(Phi=Phi.Time.env, p=p.time.env, Gamma=Gamma.Time.env))
+
+phi.te.p.Te.gamma.Te <- mark(proc.pradsen,
+                             model.parameters = list(Phi=Phi.time.env, p=p.Time.env, Gamma=Gamma.Time.env))
+
+phi.Te.p.Te.gamma.te <- mark(proc.pradsen,
+                             model.parameters = list(Phi=Phi.Time.env, p=p.Time.env, Gamma=Gamma.time.env))
+
+env <- mark(proc.pradsen, model.parameters = list(Phi=Phi.env, p=p.env, Gamma= Gamma.env))
+
+## compare all models in following table
+comparison <- collect.models(type = "Pradsen")
+comparison
 
 
