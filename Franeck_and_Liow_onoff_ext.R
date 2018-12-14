@@ -663,6 +663,55 @@ mean.extrate.off <- -log(1-mean.extprob.off)/t
 mean.prate.off <- -log(1-mean.p.off)/tp
 
 
+## Extract max and min values for upper and lower CIs
+## for sensitivity analysis plot
+## Fig S10
+## abbreviations: max./min.OR - origination rate, max./min.ER - extinction rates, max./min.ND - net diversification rates, max./min.SR - sampling rates
+## .on - onshore
+## .off - offshore
+## use data without removed 0 and 1 for data extraction here (line 547 to 555)
+
+max.OR.CI.on <- apply(on_Orig_rate_CIl, 1, function(x) max(x[is.finite(x)]))
+min.OR.CI.on <- apply(on_Orig_rate_CIu,1,min)
+max.OR.on <- apply(on_Orig_rate,1,function(x) max(x[is.finite(x)]))
+min.OR.on <- apply(on_Orig_rate,1,min)
+
+max.OR.CI.off <- apply(off_Orig_rate_CIl, 1, function(x) max(x[is.finite(x)]))
+min.OR.CI.off <- apply(off_Orig_rate_CIu,1,min)
+max.OR.off <- apply(off_Orig_rate,1,function(x) max(x[is.finite(x)]))
+min.OR.off <- apply(off_Orig_rate,1,min)
+
+
+max.ER.CI.on <- apply(on_Ext_rate_CIl,1,function(x) max(x[is.finite(x)]))
+min.ER.CI.on <- apply(on_Ext_rate_CIu,1,min)
+max.ER.on <- apply(on_Ext_rate,1,function(x) max(x[is.finite(x)]))
+min.ER.on <- apply(on_Ext_rate,1,min)
+
+max.ER.CI.off <- apply(off_Ext_rate_CIl,1,function(x) max(x[is.finite(x)]))
+min.ER.CI.off <- apply(off_Ext_rate_CIu,1,min)
+max.ER.off <- apply(off_Ext_rate,1,function(x) max(x[is.finite(x)]))
+min.ER.off <- apply(off_Ext_rate,1,min)
+
+max.ND.CI.on <- apply((divl_on-1),1,min)
+min.ND.CI.on <- apply((divu_on-1),1,max)
+max.ND.on <- apply((div_on-1),1,max)
+min.ND.on <- apply((div_on-1),1,min)
+
+max.ND.CI.off <- apply((divl_off-1),1,min)
+min.ND.CI.off <- apply((divu_off-1),1,max)
+max.ND.off <- apply((div_off-1),1,max)
+min.ND.off <- apply((div_off-1),1,min)
+
+max.SR.CI.on <- apply(rateu_p_on,1,function(x) max(x[is.finite(x)]))
+min.SR.CI.on <- apply(ratel_p_on,1,min)
+max.SR.on <- apply(rate_p_on,1,function(x) max(x[is.finite(x)]))
+min.SR.on <- apply(rate_p_on,1,min)
+
+max.SR.CI.off <- apply(rateu_p_off,1,function(x) max(x[is.finite(x)]))
+min.SR.CI.off <- apply(ratel_p_off,1,min)
+max.SR.off <- apply(rate_p_off,1,function(x) max(x[is.finite(x)]))
+min.SR.off <- apply(rate_p_off,1,min)
+
 
 #######################################
 ######################################
@@ -1114,30 +1163,39 @@ mtext("Sampling events per myr", side = 2, line = 2, cex = 0.75)
 
 ##############################################################################
 ######### FIGRUE S10 #########################################################
-######### replicate plot from 100 runs #######################################
-par(mfrow=c(2,2), mar = c(3,1,0.1,1), oma = c(0,2,0,0))
+pg.x <- c(Stagebase, rev(Stagebase))
+pg.xp <- c(Stagemidpoints, rev(Stagemidpoints))
+
+pg.y.OR.on <- c(max.OR.on, rev(min.OR.on))
+pg.y.OR.off <- c(max.OR.off, rev(min.OR.off))
+
+pg.y.ER.on <- c(max.ER.on, rev(min.ER.on))
+pg.y.ER.off <- c(max.ER.off, rev(min.ER.off))
+
+pg.y.ND.on <- c(max.ND.on, rev(min.ND.on))
+pg.y.ND.off <- c(max.ND.off, rev(min.ND.off))
+
+pg.y.SR.on <- c(max.SR.on, rev(min.SR.on))
+pg.y.SR.off <- c(max.SR.off, rev(min.SR.off))
+##############################################################################
+par(mfrow=c(2,2), mar = c(0,2,0.1,1), oma = c(3,2,0,0))
 plot(Stagebase-0.5, on_Orig_rate[,27], type = "b",
      pch=19,
-     ylim = c(-0.05,1),
+     ylim = c(-0.1,1),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
-tscales.Ord(1, 0, -0.05)
+tscales.Ord(1, -0.01, -0.1)
 
+polygon(x= pg.x, y=pg.y.OR.on, col=adjustcolor("black", alpha.f=0.2), border=NA)
+lines(Stagebase-0.3, max.OR.CI.on, type = "l", lwd=0.8, col = "grey30")
+lines(Stagebase-0.3, min.OR.CI.on, type = "l", lwd=0.8)
 
-for (i in 1:100){
-  lines(Stagebase-0.2, on_Orig_rate_CIl[,i], col = "grey70")}
-for (i in 1:100){
-  lines(Stagebase-0.2, on_Orig_rate_CIu[,i], col = "grey70")
-}  
-
-
-for (i in 1:100){
-  lines(Stagebase, off_Orig_rate_CIl[,i], col = "grey55")}
-for (i in 1:100){
-  lines(Stagebase, off_Orig_rate_CIu[,i], col = "grey55")}
+polygon(x= pg.x, y=pg.y.OR.off, col=adjustcolor("black", alpha.f=0.4), border=NA)
+lines(Stagebase, max.OR.CI.off, type = "l", lty = 3, lwd=0.8)
+lines(Stagebase, min.OR.CI.off, type = "l", lty = 3, lwd=0.8)
 
 
 lines(Stagebase-0.5, mean.origrate.on, type = "b", pch=19, lwd=0.8)
@@ -1154,25 +1212,21 @@ mtext("Origination events per myr", side = 2, line = 2, cex = 0.75)
 ############################################################################
 plot(Stagebase-0.5, mean.extrate.on, type = "b",
      pch=17,
-     ylim = c(-0.02,0.5),
+     ylim = c(-0.05,0.5),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
-tscales.Ord(0.5, 0, -0.02)
+tscales.Ord(0.5, -0.01, -0.05)
 
-for (i in 1:100){
-  lines(Stagebase-0.2, on_Ext_rate_CIl[,i], col = "grey70")}
-for (i in 1:100){
-  lines(Stagebase-0.2, on_Ext_rate_CIu[,i], col = "grey70")
-}  
+polygon(x= pg.x, y=pg.y.ER.on, col=adjustcolor("black", alpha.f=0.2), border=NA)
+lines(Stagebase-0.3, max.ER.CI.on, type = "l", lwd=0.8)
+lines(Stagebase-0.3, min.ER.CI.on, type = "l", lwd=0.8)
 
-
-for (i in 1:100){
-  lines(Stagebase, off_Ext_rate_CIl[,i], col = "grey55")}
-for (i in 1:100){
-  lines(Stagebase, off_Ext_rate_CIu[,i], col = "grey55")}
+polygon(x= pg.x, y=pg.y.ER.off, col=adjustcolor("black", alpha.f=0.4), border=NA)
+lines(Stagebase, max.ER.CI.off, type = "l", lty = 3, lwd=0.8)
+lines(Stagebase, min.ER.CI.off, type = "l", lty = 3, lwd=0.8)
 
 
 lines(Stagebase-0.5, mean.extrate.on, type = "b",lwd=0.8, pch=19)
@@ -1187,27 +1241,22 @@ mtext("Extinction events per myr", side = 2, line = 2, cex = 0.75)
 ##############################################################################
 plot(Stagebase-0.5, mean.div.on-1, type = "b",
      pch=17,
-     ylim = c(-1.5,10),
+     ylim = c(-2,10),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
-tscales.Ord(10, -1, -1.5)
+tscales.Ord(10, -1, -2)
 abline(h = 0, col="darkgrey")
 
-for (i in 1:100){
-  lines(Stagebase-0.2, divl_on[,i]-1, col = "grey70")}
-for (i in 1:100){
-  lines(Stagebase-0.2, divu_on[,i]-1, col = "grey70")
-}  
+polygon(x= pg.x, y=pg.y.ND.on, col=adjustcolor("black", alpha.f=0.2), border=NA)
+lines(Stagebase-0.2, max.ND.CI.on, type = "l", lwd=0.8, pch=19)
+lines(Stagebase-0.2, min.ND.CI.on, type = "l", lwd=0.8, pch=19)
 
-
-for (i in 1:100){
-  lines(Stagebase, divl_off[,i]-1, col = "grey55")}
-for (i in 1:100){
-  lines(Stagebase, divu_off[,i]-1, col = "grey55")}
-
+polygon(x= pg.x, y=pg.y.ND.off, col=adjustcolor("black", alpha.f=0.4), border=NA)
+lines(Stagebase, max.ND.CI.off, type = "l", lty = 3, pch=17, lwd=0.8)
+lines(Stagebase, min.ND.CI.off, type = "l", lty = 3, pch=17, lwd=0.8)
 
 
 
@@ -1233,19 +1282,13 @@ plot(Stagemidpoints-0.2, mean.prate.on, type = 'b',
 tscales.Ord(1, 0, -0.1)
 
 
-for (i in 1:100){
-  lines(Stagemidpoints-0.2, ratel_p_on[,i], col = "grey70")}
-for (i in 1:100){
-  lines(Stagemidpoints-0.2, rateu_p_on[,i], col = "grey70")
-}  
+polygon(x= pg.xp, y=pg.y.SR.on, col=adjustcolor("black", alpha.f=0.2), border=NA)
+lines(Stagemidpoints-0.1, max.SR.CI.on, type = "l", pch=19,lwd=0.8)
+lines(Stagemidpoints-0.1, min.SR.CI.on, type = "l", pch=19,lwd=0.8)
 
-
-for (i in 1:100){
-  lines(Stagemidpoints, ratel_p_off[,i], col = "grey55")}
-for (i in 1:100){
-  lines(Stagemidpoints, rateu_p_off[,i], col = "grey55")}
-
-
+polygon(x= pg.xp, y=pg.y.SR.off, col=adjustcolor("black", alpha.f=0.4), border=NA)
+lines(Stagemidpoints+0.1, max.SR.CI.off, type = "l" , lty = 3, lwd=0.8, pch=17)
+lines(Stagemidpoints+0.1, min.SR.CI.off, type = "l" , lty = 3, lwd=0.8, pch=17)
 
 lines(Stagemidpoints-0.2, mean.prate.on, type = "b",pch=19, lwd=0.8)
 lines(Stagemidpoints+0.2, mean.prate.off, type = "b" ,  pch=17, lwd=1.2, lty=2)

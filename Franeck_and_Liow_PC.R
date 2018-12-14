@@ -10,8 +10,8 @@ library(stringr)
 
 
 ## set working directory to load the PBDB file
-# setwd("M:/Franeck_and_Liow_2018")
-setwd("~/offline/Franeck_and_Liow_2018")
+setwd("//kant/nhm-sfs-u2/franzif/Franeck_and_Liow_2018/codes")
+
 
 ## read in csv download from PBDB
 genus <- read.csv("PBDB_Ord_1.csv", sep = ",", header=T)
@@ -427,6 +427,57 @@ mean.origrate.L <- -log(1-mean.origprob.L)/t
 mean.extprob.L <- 1-mean.phi.L
 mean.extrate.L <- -log(1-mean.extprob.L)/t
 mean.prate.L <- -log(1-mean.p.L)/tp
+
+
+## Extract max and min values for upper and lower CIs
+## for sensitivity analysis plot
+## Fig S7
+## abbreviations: max./min.OR - origination rate, max./min.ER - extinction rates, max./min.ND - net diversification rates, max./min.SR - sampling rates
+## .B - Baltica
+## .L - Laurentia
+## use data without removed 0 and 1 for data extraction here (line 306 to 322)
+
+max.OR.CI.B <- apply(BAL_Orig_rate_CIl, 1, function(x) max(x[is.finite(x)]))
+min.OR.CI.B <- apply(BAL_Orig_rate_CIu,1,min)
+max.OR.B <- apply(BAL_Orig_rate,1,function(x) max(x[is.finite(x)]))
+min.OR.B <- apply(BAL_Orig_rate,1,min)
+
+max.OR.CI.L <- apply(NAC_Orig_rate_CIl, 1, function(x) max(x[is.finite(x)]))
+min.OR.CI.L <- apply(NAC_Orig_rate_CIu,1,min)
+max.OR.L <- apply(NAC_Orig_rate,1,function(x) max(x[is.finite(x)]))
+min.OR.L <- apply(NAC_Orig_rate,1,min)
+
+
+max.ER.CI.B <- apply(BAL_Ext_rate_CIl,1,function(x) max(x[is.finite(x)]))
+min.ER.CI.B <- apply(BAL_Ext_rate_CIu,1,min)
+max.ER.B <- apply(BAL_Ext_rate,1,function(x) max(x[is.finite(x)]))
+min.ER.B <- apply(BAL_Ext_rate,1,min)
+
+max.ER.CI.L <- apply(NAC_Ext_rate_CIl,1,function(x) max(x[is.finite(x)]))
+min.ER.CI.L <- apply(NAC_Ext_rate_CIu,1,min)
+max.ER.L <- apply(NAC_Ext_rate,1,function(x) max(x[is.finite(x)]))
+min.ER.L <- apply(NAC_Ext_rate,1,min)
+
+max.ND.CI.B <- apply((divl_BAL-1),1,min)
+min.ND.CI.B <- apply((divu_BAL-1),1,max)
+max.ND.B <- apply((div_BAL-1),1,max)
+min.ND.B <- apply((div_BAL-1),1,min)
+
+max.ND.CI.L <- apply((divl_NAC-1),1,min)
+min.ND.CI.L <- apply((divu_NAC-1),1,max)
+max.ND.L <- apply((div_NAC-1),1,max)
+min.ND.L <- apply((div_NAC-1),1,min)
+
+max.SR.CI.B <- apply(rateu_p_BAL,1,function(x) max(x[is.finite(x)]))
+min.SR.CI.B <- apply(ratel_p_BAL,1,min)
+max.SR.B <- apply(rate_p_BAL,1,function(x) max(x[is.finite(x)]))
+min.SR.B <- apply(rate_p_BAL,1,min)
+
+max.SR.CI.L <- apply(rateu_p_LAU,1,function(x) max(x[is.finite(x)]))
+min.SR.CI.L <- apply(ratel_p_LAU,1,min)
+max.SR.L <- apply(rate_p_LAU,1,function(x) max(x[is.finite(x)]))
+min.SR.L <- apply(rate_p_LAU,1,min)
+
 
 
 #########################################################################################################
@@ -884,8 +935,26 @@ mtext("Sampling events per myr", side = 2, line = 2, cex = 1)
 
 ################################################################################################
 ##### Figure S7 ## replicate of 100 runs #######################################################
+##### polygon plot
+##### 
 
+pg.x <- c(Stagebase, rev(Stagebase))
+pg.xp <- c(Stagemidpoints, rev(Stagemidpoints))
 
+pg.y.OR.B <- c(max.OR.B, rev(min.OR.B))
+pg.y.OR.L <- c(max.OR.L, rev(min.OR.L))
+
+pg.y.ER.B <- c(max.ER.B, rev(min.ER.B))
+pg.y.ER.L <- c(max.ER.L, rev(min.ER.L))
+
+pg.y.ND.B <- c(max.ND.B, rev(min.ND.B))
+pg.y.ND.L <- c(max.ND.L, rev(min.ND.L))
+
+pg.y.SR.B <- c(max.SR.B, rev(min.SR.B))
+pg.y.SR.L <- c(max.SR.L, rev(min.SR.L))
+
+###########################################################################
+###########################################################################
 par(mfrow=c(2,2), mar = c(1,2,0.1,1), oma = c(2,2,0,0))
 
 plot(Stagebase-0.2, mean.origrate.B, type = "b", 
@@ -898,27 +967,21 @@ plot(Stagebase-0.2, mean.origrate.B, type = "b",
 
 tscales.Ord(1, -0.01, -0.12)
 
-for (i in 1:100){
-  lines(Stagebase-0.2, BAL_Orig_rate_CIl[,i], col = "grey70")}
-for (i in 1:100){
-  lines(Stagebase-0.2, BAL_Orig_rate_CIu[,i], col = "grey70")
-}  
+polygon(x= pg.x, y=pg.y.OR.B, col=adjustcolor("black", alpha.f=0.2), border=NA)
+lines(Stagebase-0.3, max.OR.CI.B, type = "l", lwd=0.8, col = "grey30")
+lines(Stagebase-0.3, min.OR.CI.B, type = "l", lwd=0.8)
 
+polygon(x= pg.x, y=pg.y.OR.L, col=adjustcolor("black", alpha.f=0.4), border=NA)
+lines(Stagebase, max.OR.CI.L, type = "l", lty = 3, lwd=0.8)
+lines(Stagebase, min.OR.CI.L, type = "l", lty = 3, lwd=0.8)
 
-for (i in 1:100){
-  lines(Stagebase, NAC_Orig_rate_CIl[,i], col = "grey55")}
-for (i in 1:100){
-  lines(Stagebase, NAC_Orig_rate_CIu[,i], col = "grey55")}
-
-
-
-lines(Stagebase-0.3, mean.origrate.B, type = "b", pch=19, lwd=0.8)
-lines(Stagebase, mean.origrate.L, type = "b", lty = 2, pch=17,lwd=1.2)
+lines(Stagebase-0.3, mean.origrate.B, type = "b", pch=19, lwd=1, col = "grey30")
+lines(Stagebase, mean.origrate.L, type = "b", lty = 2, pch=17,lwd=1.5)
 
 lines(Stagebase[1]-1, mean.origrate.B[1]-0.02, type = "b", pch="B")
 lines(Stagebase[1]-1, mean.origrate.L[1]-0.02, type = "b", pch="L")
 
-legend("topleft", legend="A", bty="n", cex = 1.25)
+legend("topleft", legend="A", bty="n", cex = 1.25, text.font=2)
 
 axis(2, col = 'grey75', line = -0.2, at = seq(0, 1, 0.2))
 
@@ -937,23 +1000,19 @@ plot(Stagebase-0.2, mean.extrate.B, type = "b",
 
 tscales.Ord(1, -0.01, -0.12)
 
-for (i in 1:100){
-  lines(Stagebase-0.2, BAL_Ext_rate_CIl[,i], col = "grey70")}
-for (i in 1:100){
-  lines(Stagebase-0.2, BAL_Ext_rate_CIu[,i], col = "grey70")
-}  
+polygon(x= pg.x, y=pg.y.ER.B, col=adjustcolor("black", alpha.f=0.2), border=NA)
+lines(Stagebase-0.3, max.ER.CI.B, type = "l", lwd=0.8)
+lines(Stagebase-0.3, min.ER.CI.B, type = "l", lwd=0.8)
+
+polygon(x= pg.x, y=pg.y.ER.L, col=adjustcolor("black", alpha.f=0.4), border=NA)
+lines(Stagebase, max.ER.CI.L, type = "l", lty = 3, lwd=0.8)
+lines(Stagebase, min.ER.CI.L, type = "l", lty = 3, lwd=0.8)
+
+lines(Stagebase-0.3, mean.extrate.B, type = "b", pch=19, lwd=1, col = "grey30")
+lines(Stagebase, mean.extrate.L, type = "b", lty = 2, lwd=1.5, pch=17)
 
 
-for (i in 1:100){
-  lines(Stagebase, NAC_Ext_rate_CIl[,i], col = "grey55")}
-for (i in 1:100){
-  lines(Stagebase, NAC_Ext_rate_CIu[,i], col = "grey55")}
-
-lines(Stagebase-0.3, mean.extrate.B, type = "b", pch=19, lwd=0.8)
-lines(Stagebase, mean.extrate.L, type = "b", lty = 2, lwd=1.2, pch=17)
-
-
-legend("topleft", legend="B", bty="n", cex = 1.25)
+legend("topleft", legend="B", bty="n", cex = 1.25, text.font=2)
 
 axis(2, col = 'grey75', line = -0.2, at = seq(0, 1, 0.2))
 
@@ -963,35 +1022,30 @@ mtext("Extinction events per myr", side = 2, line = 2, cex = 0.75)
 ##############################################################################
 ## net diversification 
 plot(Stagebase-0.2, mean.div.B-1, type = "b", 
-     ylim = c(-2,10),
+     ylim = c(-4,25),
      xlim = rev(c(444.18,485.4)),
      axes = F,
      xlab = "",
      ylab = "")
 
-tscales.Ord(10, -1.1, -2)
+tscales.Ord(25, -1.1, -4)
 abline(h = 0, col="darkgrey")
 
+polygon(x= pg.x, y=pg.y.ND.B, col=adjustcolor("black", alpha.f=0.2), border=NA)
+lines(Stagebase-0.2, max.ND.CI.B, type = "l", lwd=0.8, pch=19)
+lines(Stagebase-0.2, min.ND.CI.B, type = "l", lwd=0.8, pch=19)
 
-for (i in 1:100){
-  lines(Stagebase-0.2, divl_BAL[,i]-1, col = "grey70")}
-for (i in 1:100){
-  lines(Stagebase-0.2, divu_BAL[,i]-1, col = "grey70")
-}  
+polygon(x= pg.x, y=pg.y.ND.L, col=adjustcolor("black", alpha.f=0.4), border=NA)
+lines(Stagebase, max.ND.CI.L, type = "l", lty = 3, pch=17, lwd=0.8)
+lines(Stagebase, min.ND.CI.L, type = "l", lty = 3, pch=17, lwd=0.8)
 
+lines(Stagebase-0.2, mean.div.B-1, type = "b", lwd=1, pch=19, col= "grey30")
+lines(Stagebase, mean.div.L-1, type = "b", lty = 2, pch=17, lwd=1.5)
 
-for (i in 1:100){
-  lines(Stagebase, divl_NAC[,i]-1, col = "grey55")}
-for (i in 1:100){
-  lines(Stagebase, divu_NAC[,i]-1, col = "grey55")}
-
-lines(Stagebase-0.2, mean.div.B-1, type = "b", lwd=0.8, pch=19)
-lines(Stagebase, mean.div.L-1, type = "b", lty = 2, pch=17, lwd=0.8)
-
-legend("topleft", legend="C", bty="n", cex = 1.25)
+legend("topleft", legend="C", bty="n", cex = 1.25, text.font=2)
 
 axis(1, col = 'grey75', line = 0.15, at = seq(445,485,10))
-axis(2, col = 'grey75', line = -0.2, at = seq(-2, 10, 2))
+axis(2, col = 'grey75', line = -0.2, at = seq(0, 25, 5))
 
 mtext("Age (Ma)", side = 1, line = 2, cex = 0.75)
 mtext("Net diversification rate", side = 2, line = 2, cex = 0.75)
@@ -1006,30 +1060,28 @@ plot(Stagemidpoints-0.1, mean.prate.B, type = 'b',
 
 tscales.Ord(1, -0.01, -0.15)
 
-for (i in 1:100){
-  lines(Stagemidpoints-0.2, ratel_p_BAL[,i], col = "grey70")}
-for (i in 1:100){
-  lines(Stagemidpoints-0.2, rateu_p_BAL[,i], col = "grey70")
-}  
+polygon(x= pg.xp, y=pg.y.SR.B, col=adjustcolor("black", alpha.f=0.2), border=NA)
+lines(Stagemidpoints-0.1, max.SR.CI.B, type = "l", pch=19,lwd=0.8)
+lines(Stagemidpoints-0.1, min.SR.CI.B, type = "l", pch=19,lwd=0.8)
+
+polygon(x= pg.xp, y=pg.y.SR.L, col=adjustcolor("black", alpha.f=0.4), border=NA)
+lines(Stagemidpoints+0.1, max.SR.CI.L, type = "l" , lty = 3, lwd=0.8, pch=17)
+lines(Stagemidpoints+0.1, min.SR.CI.L, type = "l" , lty = 3, lwd=0.8, pch=17)
+
+lines(Stagemidpoints-0.1, mean.prate.B, type = "b", pch=19,lwd=1, col = "grey30")
+lines(Stagemidpoints+0.1, mean.prate.L, type = "b" , lty = 2, lwd=1.5, pch=17)
 
 
-for (i in 1:100){
-  lines(Stagemidpoints, ratel_p_LAU[,i], col = "grey55")}
-for (i in 1:100){
-  lines(Stagemidpoints, rateu_p_LAU[,i], col = "grey55")}
-
-
-lines(Stagemidpoints-0.1, mean.prate.B, type = "b", pch=19,lwd=0.8)
-lines(Stagemidpoints+0.1, mean.prate.L, type = "b" , lty = 2, lwd=1.2, pch=17)
-
-
-legend("topleft", legend="D", bty="n", cex = 1.25)
+legend("topleft", legend="D", bty="n", cex = 1.25, text.font=2)
 
 axis(1, col = 'grey75', line = 0.15, at = seq(445,485,10))
 axis(2, col = 'grey75', line = -0.15, at = seq(0, 1, 0.2))
 
 mtext("Age (Ma)", side = 1, line = 2, cex = 0.75)
 mtext("Sampling events per myr", side = 2, line = 2, cex = 0.75)
+
+
+
 
 
 
